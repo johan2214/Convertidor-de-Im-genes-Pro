@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Convertidor profesional de imágenes. Comprime, optimiza y convierte imágenes a WebP, JPEG y PNG con filtros y efectos.">
+  <title>Convertidor de Imágenes Pro</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+  
+  <div class="theme-toggle" role="button" tabindex="0" aria-label="Cambiar tema">
+    <button id="themeToggle" title="Cambiar tema">
+      <i class="fas fa-sun" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-images" aria-hidden="true"></i> Convertidor de Imágenes Pro</h1>
+      <p class="subtitle">Convierte, comprime y optimiza tus imágenes fácilmente</p>
+    </header>
+
+    <main id="main-content">
+      <!-- Área de arrastrar y soltar -->
+      <div class="drop-zone" id="dropZone" role="region" aria-label="Zona de carga de archivos" tabindex="0">
+        <div class="drop-zone-content">
+          <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i>
+          <p class="drop-text">Arrastra y suelta tus imágenes o carpetas aquí</p>
+          <p class="drop-subtext">o haz clic para seleccionar archivos</p>
+          <input type="file" id="imageUpload" multiple accept="image/*" style="display: none;">
+          <div class="upload-options">
+            <button id="selectFilesBtn" class="btn-upload-option">
+              <i class="fas fa-file-image" aria-hidden="true"></i> Seleccionar archivos
+            </button>
+            <button id="selectFolderBtn" class="btn-upload-option">
+              <i class="fas fa-folder-open" aria-hidden="true"></i> Seleccionar carpeta
+            </button>
+          </div>
+        </div>
+        <div class="drop-zone-overlay" aria-hidden="true">
+          <i class="fas fa-plus" aria-hidden="true"></i>
+          <p>Suelta aquí</p>
+        </div>
+      </div>
+
+      <!-- Panel de archivos seleccionados (Preview) -->
+      <div class="preview-section" id="previewSection" style="display: none;">
+        <div class="preview-header">
+          <h3><i class="fas fa-eye" aria-hidden="true"></i> Archivos seleccionados</h3>
+          <button id="clearFilesBtn" class="btn-text">
+            <i class="fas fa-trash" aria-hidden="true"></i> Limpiar selección
+          </button>
+        </div>
+        <div class="preview-list" id="previewList"></div>
+      </div>
+
+      <!-- Panel de controles -->
+      <div class="controls-panel" id="controlsPanel">
+        <div class="control-group">
+          <label for="maxWidth">
+            <i class="fas fa-expand-arrows-alt" aria-hidden="true"></i> Ancho máximo
+            <span class="tooltip" title="Las imágenes más grandes se redimensionarán manteniendo la proporción" tabindex="0">
+              <i class="fas fa-question-circle" aria-hidden="true"></i>
+            </span>
+          </label>
+          <div class="input-wrapper">
+            <input type="number" id="maxWidth" value="1920" min="100" max="8000" step="10" aria-describedby="maxWidthHelp">
+            <span class="unit">px</span>
+          </div>
+          <small id="maxWidthHelp" class="help-text">Las imágenes más grandes se redimensionarán proporcionalmente</small>
+        </div>
+
+        <div class="control-group">
+          <label for="quality">
+            <i class="fas fa-gem" aria-hidden="true"></i> Calidad
+            <span class="value-display" id="qualityValue">85%</span>
+          </label>
+          <input type="range" id="quality" min="10" max="100" value="85" class="slider" aria-label="Calidad de compresión">
+          <div class="slider-labels">
+            <span>Menor tamaño</span>
+            <span>Mejor calidad</span>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="outputFormat">
+            <i class="fas fa-file-image" aria-hidden="true"></i> Formato de salida
+          </label>
+          <select id="outputFormat" aria-label="Seleccionar formato de salida">
+            <option value="webp">WebP (Recomendado)</option>
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="namingPattern">
+            <i class="fas fa-tag" aria-hidden="true"></i> Patrón de nombres
+          </label>
+          <select id="namingPattern" aria-label="Patrón de renombrado">
+            <option value="original">{nombre-original} - Mantener nombre original</option>
+            <option value="number">{numero} - Numeración secuencial</option>
+            <option value="date">{fecha} - Fecha y hora</option>
+            <option value="custom">Personalizado...</option>
+          </select>
+          <div class="custom-pattern-input" id="customPatternInput" style="display: none;">
+            <input type="text" id="customPattern" placeholder="Ej: imagen-{numero}-{fecha}" aria-label="Patrón personalizado">
+            <small class="help-text">
+              Variables disponibles: {nombre}, {numero}, {fecha}, {hora}, {dimensiones}
+            </small>
+          </div>
+        </div>
+
+        <div class="control-group checkbox-group">
+          <label class="checkbox-label" for="keepMetadata">
+            <input type="checkbox" id="keepMetadata">
+            <span class="checkmark"></span>
+            <span class="label-text">Mantener metadata (EXIF)</span>
+          </label>
+        </div>
+
+        <div class="control-group checkbox-group">
+          <label class="checkbox-label" for="maintainStructure">
+            <input type="checkbox" id="maintainStructure" checked>
+            <span class="checkmark"></span>
+            <span class="label-text">Mantener estructura de carpetas</span>
+          </label>
+        </div>
+
+        <button id="convertBtn" class="btn-primary" disabled>
+          <i class="fas fa-magic" aria-hidden="true"></i> Convertir imágenes
+        </button>
+      </div>
+
+      <!-- Panel de filtros y efectos -->
+      <div class="filters-panel" id="filtersPanel">
+        <div class="filters-header">
+          <h3><i class="fas fa-magic" aria-hidden="true"></i> Filtros y efectos</h3>
+          <div class="filters-actions">
+            <button id="applyToSelectedBtn" class="btn-filter-action" disabled>
+              <i class="fas fa-check-square" aria-hidden="true"></i> Aplicar a seleccionadas
+            </button>
+            <button id="applyToAllBtn" class="btn-filter-action" disabled>
+              <i class="fas fa-th" aria-hidden="true"></i> Aplicar a todas
+            </button>
+            <button id="resetFiltersBtn" class="btn-filter-action secondary">
+              <i class="fas fa-undo" aria-hidden="true"></i> Restablecer
+            </button>
+          </div>
+        </div>
+        
+        <div class="filters-main">
+          <div class="filters-preview-section">
+            <label class="preview-label">Vista previa del filtro</label>
+            <div class="filters-preview-container" id="filtersPreviewContainer">
+              <div class="filters-preview-placeholder">
+                <i class="fas fa-image" aria-hidden="true"></i>
+                <p>Selecciona imágenes para ver la vista previa</p>
+              </div>
+            </div>
+            <div class="filters-preview-info" id="filtersPreviewInfo" style="display: none;">
+              <span id="previewImageName"></span>
+              <button id="changePreviewBtn" class="btn-text-small">
+                <i class="fas fa-random" aria-hidden="true"></i> Cambiar imagen
+              </button>
+            </div>
+          </div>
+          
+          <div class="filters-controls-section">
+            <div class="filters-grid">
+              <div class="filter-group">
+                <label>Rotación</label>
+                <div class="rotation-controls">
+                  <button class="btn-rotate" data-rotate="-90" title="Rotar 90° izquierda" aria-label="Rotar 90 grados a la izquierda">
+                    <i class="fas fa-undo" aria-hidden="true"></i>
+                  </button>
+                  <button class="btn-rotate" data-rotate="90" title="Rotar 90° derecha" aria-label="Rotar 90 grados a la derecha">
+                    <i class="fas fa-redo" aria-hidden="true"></i>
+                  </button>
+                  <button class="btn-rotate" data-rotate="180" title="Rotar 180°" aria-label="Rotar 180 grados">
+                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                  </button>
+                  <span id="rotationValue">0°</span>
+                </div>
+              </div>
+
+              <div class="filter-group">
+                <label for="filterType">Filtro</label>
+                <select id="filterType">
+                  <option value="none">Ninguno</option>
+                  <option value="grayscale">Escala de grises</option>
+                  <option value="sepia">Sepia</option>
+                  <option value="blur">Desenfoque</option>
+                  <option value="sharpen">Nitidez</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label for="brightness">Brillo</label>
+                <input type="range" id="brightness" min="0" max="200" value="100" class="slider">
+                <span class="filter-value" id="brightnessValue">100%</span>
+              </div>
+
+              <div class="filter-group">
+                <label for="contrast">Contraste</label>
+                <input type="range" id="contrast" min="0" max="200" value="100" class="slider">
+                <span class="filter-value" id="contrastValue">100%</span>
+              </div>
+
+              <div class="filter-group">
+                <label for="saturation">Saturación</label>
+                <input type="range" id="saturation" min="0" max="200" value="100" class="slider">
+                <span class="filter-value" id="saturationValue">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de progreso detallada -->
+      <div class="progress-section" id="progressSection" role="status" aria-live="polite" aria-atomic="true">
+        <div class="progress-info">
+          <span id="progressPhase">Preparando...</span>
+          <span id="progressCount">0/0</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <span class="progress-percentage" id="progressPercentage">0%</span>
+        </div>
+        <div class="current-file" id="currentFile"></div>
+        <div class="time-estimate" id="timeEstimate"></div>
+      </div>
+
+      <!-- Estadísticas -->
+      <div class="stats-section" id="statsSection" role="region" aria-label="Estadísticas">
+        <div class="stat-card">
+          <i class="fas fa-images" aria-hidden="true"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="totalImages">0</span>
+            <span class="stat-label">Imágenes</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-weight-hanging" aria-hidden="true"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="originalSize">0 MB</span>
+            <span class="stat-label">Tamaño original</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-compress-arrows-alt" aria-hidden="true"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="compressedSize">0 MB</span>
+            <span class="stat-label">Tamaño final</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <i class="fas fa-percentage" aria-hidden="true"></i>
+          <div class="stat-info">
+            <span class="stat-value" id="savingsPercent">0%</span>
+            <span class="stat-label">Ahorro</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de descarga ZIP -->
+      <div class="download-section" id="downloadSection">
+        <button id="downloadZipBtn" class="btn-secondary">
+          <i class="fas fa-file-archive" aria-hidden="true"></i> Descargar todas (ZIP)
+        </button>
+        <button id="clearAllBtn" class="btn-text">
+          <i class="fas fa-trash" aria-hidden="true"></i> Limpiar todo
+        </button>
+      </div>
+
+      <!-- Galería de resultados -->
+      <div class="gallery" id="gallery" role="region" aria-label="Resultados de conversión"></div>
+
+      <!-- Historial -->
+      <div class="history-section" id="historySection" role="region" aria-label="Historial de conversiones">
+        <h3><i class="fas fa-history" aria-hidden="true"></i> Historial de conversiones</h3>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+
+    </main>
+  </div>
+
+  <!-- Contenedor de notificaciones -->
+  <div class="toast-container" id="toastContainer" role="region" aria-label="Notificaciones" aria-live="polite"></div>
+
+  <!-- Modal de comparación interactiva -->
+  <div class="compare-modal" id="compareModal" style="display: none;" role="dialog" aria-modal="true" aria-label="Comparación de imágenes">
+    <div class="compare-container">
+      <div class="compare-header">
+        <h3><i class="fas fa-exchange-alt" aria-hidden="true"></i> Comparación interactiva</h3>
+        <button class="close-modal" aria-label="Cerrar comparación">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="compare-body">
+        <div class="compare-slider-container">
+          <div class="compare-images">
+            <img id="compareOriginal" alt="Original" class="compare-image compare-image-original">
+            <img id="compareCompressed" alt="Comprimida" class="compare-image compare-image-compressed">
+          </div>
+          <div class="compare-slider" id="compareSlider" role="slider" aria-label="Control de comparación" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100" tabindex="0">
+            <div class="compare-slider-line"></div>
+            <div class="compare-slider-handle">
+              <i class="fas fa-arrows-alt-h" aria-hidden="true"></i>
+            </div>
+          </div>
+        </div>
+        <div class="compare-info-bar">
+          <div class="compare-info-item">
+            <strong>Original:</strong> <span id="compareOriginalInfo"></span>
+          </div>
+          <div class="compare-info-item">
+            <strong>Comprimida:</strong> <span id="compareCompressedInfo"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
