@@ -11,8 +11,18 @@ build/
 *.zip
 
 # IDE y editores
-.vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# VS Code - permitir configuración compartida pero ignorar personales
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 *.swp
 *.swo
 *~
