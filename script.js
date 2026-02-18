@@ -1,15 +1,64 @@
 /**
- * Convertidor de Imágenes Pro v3.0
- * Filtros visuales con preview en tiempo real
+ * @fileoverview Convertidor de Imágenes Pro v3.0
+ * Aplicación web profesional para conversión, compresión y optimización de imágenes.
+ * 
+ * @author Anderson Pérez <@johan2214>
+ * @version 3.0.0
+ * @license MIT
+ * 
+ * @description
+ * Esta aplicación permite convertir imágenes entre formatos WebP, JPEG y PNG,
+ * aplicar filtros visuales, comprimir con control de calidad, y procesar
+ * múltiples imágenes simultáneamente todo directamente en el navegador.
+ * 
+ * @requires File API
+ * @requires Canvas API
+ * @requires Drag and Drop API
+ * @requires LocalStorage API
+ * @requires JSZip (CDN)
+ * @requires Font Awesome (CDN)
+ * 
+ * @example
+ * // La aplicación se inicializa automáticamente al cargar el DOM
+ * document.addEventListener('DOMContentLoaded', () => {
+ *   new ImageConverterPro();
+ * });
  */
 
+/**
+ * Configuración global de la aplicación
+ * @constant {Object}
+ * @property {number} maxFileSize - Tamaño máximo por archivo (50MB)
+ * @property {number} maxConcurrent - Número máximo de procesos concurrentes
+ * @property {number} thumbnailCacheSize - Tamaño máximo del caché de miniaturas
+ */
 const CONFIG = {
   maxFileSize: 50 * 1024 * 1024,
   maxConcurrent: 3,
   thumbnailCacheSize: 100
 };
 
+/**
+ * Clase principal del Convertidor de Imágenes Pro
+ * @class
+ * @classdesc Gestiona todo el flujo de trabajo de conversión de imágenes incluyendo
+ * carga de archivos, aplicación de filtros, procesamiento por lotes y descargas.
+ * 
+ * @property {File[]} selectedFiles - Archivos seleccionados para procesar
+ * @property {Array<Object>} processedImages - Imágenes procesadas con sus datos
+ * @property {Array<Object>} conversionHistory - Historial de conversiones guardado
+ * @property {boolean} isProcessing - Estado actual del procesamiento
+ * @property {Map<string, string>} thumbnailCache - Caché de miniaturas generadas
+ * @property {Object} filters - Filtros globales actuales
+ * @property {number} previewImageIndex - Índice de imagen para preview
+ * @property {Set<number>} selectedForFilters - Índices de archivos seleccionados
+ * @property {Map<number, Object>} fileFilters - Filtros específicos por archivo
+ */
 class ImageConverterPro {
+  /**
+   * Crea una instancia del convertidor
+   * @constructor
+   */
   constructor() {
     this.selectedFiles = [];
     this.processedImages = [];
@@ -19,11 +68,15 @@ class ImageConverterPro {
     this.filters = { rotation: 0, filter: 'none', brightness: 100, contrast: 100, saturation: 100 };
     this.previewImageIndex = 0;
     this.selectedForFilters = new Set();
-    this.fileFilters = new Map(); // Almacena filtros específicos por archivo
+    this.fileFilters = new Map();
     
     this.init();
   }
 
+  /**
+   * Inicializa la aplicación configurando elementos y eventos
+   * @returns {void}
+   */
   init() {
     this.cacheElements();
     this.bindEvents();
@@ -108,6 +161,12 @@ class ImageConverterPro {
     });
   }
 
+  /**
+   * Maneja el evento de soltar archivos en la zona de drop
+   * @async
+   * @param {DragEvent} e - Evento de drag and drop
+   * @returns {Promise<void>}
+   */
   async handleDrop(e) {
     e.preventDefault();
     this.dropZone.classList.remove('dragover');
@@ -128,6 +187,13 @@ class ImageConverterPro {
     this.processFiles(files);
   }
 
+  /**
+   * Recorre recursivamente un directorio para obtener todos los archivos
+   * @async
+   * @param {DirectoryEntry} dirEntry - Entrada del directorio a recorrer
+   * @param {File[]} files - Array donde se almacenarán los archivos encontrados
+   * @returns {Promise<void>}
+   */
   async traverseDirectory(dirEntry, files) {
     const reader = dirEntry.createReader();
     const readEntries = () => new Promise(resolve => {
@@ -156,6 +222,13 @@ class ImageConverterPro {
     this.processFiles(files);
   }
 
+  /**
+   * Procesa y valida los archivos seleccionados
+   * @param {File[]} files - Array de archivos a procesar
+   * @returns {void}
+   * @description Valida que los archivos sean imágenes válidas y no excedan el tamaño máximo,
+   * luego los agrega a la lista de archivos seleccionados y actualiza la UI.
+   */
   processFiles(files) {
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/')) {
@@ -383,6 +456,15 @@ class ImageConverterPro {
     this.showToast('info', 'Filtros restablecidos', 'Valores por defecto restaurados');
   }
 
+  /**
+   * Procesa todas las imágenes seleccionadas
+   * @async
+   * @returns {Promise<void>}
+   * @description Inicia el procesamiento por lotes de todas las imágenes seleccionadas,
+   * aplicando los filtros y configuraciones especificadas. Muestra progreso en tiempo real
+   * y actualiza las estadísticas al finalizar.
+   * @throws {Error} Si ocurre un error durante el procesamiento de una imagen
+   */
   async processImages() {
     if (this.selectedFiles.length === 0) {
       this.showToast('warning', 'Sin archivos', 'Selecciona al menos una imagen');
@@ -432,6 +514,35 @@ class ImageConverterPro {
     this.clearSelection();
   }
 
+  /**
+   * Procesa una imagen individual aplicando filtros y compresión
+   * @async
+   * @param {File} file - Archivo de imagen a procesar
+   * @param {number} index - Índice del archivo en el array
+   * @param {number} maxWidth - Ancho máximo para redimensionar
+   * @param {number} quality - Calidad de compresión (0-1)
+   * @param {string} format - Formato de salida (webp, jpeg, png)
+   * @param {boolean} maintainStructure - Mantener estructura de carpetas
+   * @param {Object} fileFilters - Filtros específicos para esta imagen
+   * @param {number} fileFilters.rotation - Grados de rotación
+   * @param {string} fileFilters.filter - Tipo de filtro (none, grayscale, sepia, blur)
+   * @param {number} fileFilters.brightness - Brillo (0-200)
+   * @param {number} fileFilters.contrast - Contraste (0-200)
+   * @param {number} fileFilters.saturation - Saturación (0-200)
+   * @returns {Promise<Object>} Objeto con datos de la imagen procesada
+   * @property {string} originalName - Nombre original del archivo
+   * @property {string} name - Nuevo nombre con extensión
+   * @property {string} relativePath - Ruta relativa (si aplica)
+   * @property {string} originalDataUrl - Data URL de imagen original
+   * @property {string} dataUrl - Data URL de imagen procesada
+   * @property {number} originalSize - Tamaño original en bytes
+   * @property {number} size - Tamaño procesado en bytes
+   * @property {number} originalWidth - Ancho original
+   * @property {number} originalHeight - Alto original
+   * @property {number} width - Ancho final
+   * @property {number} height - Alto final
+   * @throws {Error} Si hay error al leer o procesar la imagen
+   */
   async processSingleFile(file, index, maxWidth, quality, format, maintainStructure, fileFilters) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

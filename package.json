@@ -1,0 +1,43 @@
+{
+  "name": "convertidor-imagenes-pro",
+  "version": "3.0.0",
+  "description": "Aplicación web profesional para conversión, compresión y optimización de imágenes",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve",
+    "dev": "npx live-server --port=8080",
+    "format": "npx prettier --write \"*.{js,html,css,md}\"",
+    "lint": "npx eslint script.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/johan2214/Convertidor-de-Im-genes-Pro.git"
+  },
+  "keywords": [
+    "image-converter",
+    "image-compression",
+    "webp",
+    "jpeg",
+    "png",
+    "frontend",
+    "vanilla-javascript",
+    "canvas-api"
+  ],
+  "author": "Anderson Pérez <@johan2214>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/johan2214/Convertidor-de-Im-genes-Pro/issues"
+  },
+  "homepage": "https://github.com/johan2214/Convertidor-de-Im-genes-Pro#readme",
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "live-server": "^1.2.2"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie <= 11"
+  ]
+}
