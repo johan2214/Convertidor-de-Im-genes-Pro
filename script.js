@@ -1,23 +1,23 @@
 /**
  * @fileoverview Convertidor de Imágenes Pro v3.0
  * Aplicación web profesional para conversión, compresión y optimización de imágenes.
- * 
+ *
  * @author Anderson Pérez <@johan2214>
  * @version 3.0.0
  * @license MIT
- * 
+ *
  * @description
  * Esta aplicación permite convertir imágenes entre formatos WebP, JPEG y PNG,
  * aplicar filtros visuales, comprimir con control de calidad, y procesar
  * múltiples imágenes simultáneamente todo directamente en el navegador.
- * 
+ *
  * @requires File API
  * @requires Canvas API
  * @requires Drag and Drop API
  * @requires LocalStorage API
  * @requires JSZip (CDN)
  * @requires Font Awesome (CDN)
- * 
+ *
  * @example
  * // La aplicación se inicializa automáticamente al cargar el DOM
  * document.addEventListener('DOMContentLoaded', () => {
@@ -43,7 +43,7 @@ const CONFIG = {
  * @class
  * @classdesc Gestiona todo el flujo de trabajo de conversión de imágenes incluyendo
  * carga de archivos, aplicación de filtros, procesamiento por lotes y descargas.
- * 
+ *
  * @property {File[]} selectedFiles - Archivos seleccionados para procesar
  * @property {Array<Object>} processedImages - Imágenes procesadas con sus datos
  * @property {Array<Object>} conversionHistory - Historial de conversiones guardado
@@ -69,7 +69,7 @@ class ImageConverterPro {
     this.previewImageIndex = 0;
     this.selectedForFilters = new Set();
     this.fileFilters = new Map();
-    
+
     this.init();
   }
 
@@ -103,25 +103,25 @@ class ImageConverterPro {
     this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('dragover'); });
     this.dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); this.dropZone.classList.remove('dragover'); });
     this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
-    
+
     // Botones
     document.getElementById('selectFilesBtn').addEventListener('click', () => {
       this.fileInput.removeAttribute('webkitdirectory');
       this.fileInput.click();
     });
-    
+
     document.getElementById('selectFolderBtn').addEventListener('click', () => {
       this.fileInput.setAttribute('webkitdirectory', '');
       this.fileInput.click();
     });
-    
+
     this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
     document.getElementById('clearFilesBtn').addEventListener('click', () => this.clearSelection());
     document.getElementById('convertBtn').addEventListener('click', () => this.processImages());
     document.getElementById('downloadZipBtn').addEventListener('click', () => this.downloadAllAsZip());
     document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
     document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
-    
+
     // Filtros
     document.querySelectorAll('.btn-rotate').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -131,12 +131,12 @@ class ImageConverterPro {
         this.updateFilterPreview();
       });
     });
-    
+
     document.getElementById('filterType').addEventListener('change', (e) => {
       this.filters.filter = e.target.value;
       this.updateFilterPreview();
     });
-    
+
     ['brightness', 'contrast', 'saturation'].forEach(id => {
       document.getElementById(id).addEventListener('input', (e) => {
         this.filters[id] = parseInt(e.target.value);
@@ -144,17 +144,17 @@ class ImageConverterPro {
         this.updateFilterPreview();
       });
     });
-    
+
     this.applyToSelectedBtn.addEventListener('click', () => this.applyFiltersToSelected());
     this.applyToAllBtn.addEventListener('click', () => this.applyFiltersToAll());
     document.getElementById('resetFiltersBtn').addEventListener('click', () => this.resetFilters());
     document.getElementById('changePreviewBtn').addEventListener('click', () => this.changePreviewImage());
-    
+
     // Quality
     document.getElementById('quality').addEventListener('input', (e) => {
       document.getElementById('qualityValue').textContent = `${e.target.value}%`;
     });
-    
+
     // Pattern
     document.getElementById('namingPattern').addEventListener('change', (e) => {
       document.getElementById('customPatternInput').style.display = e.target.value === 'custom' ? 'block' : 'none';
@@ -172,15 +172,15 @@ class ImageConverterPro {
     this.dropZone.classList.remove('dragover');
     const items = e.dataTransfer.items;
     const files = [];
-    
-    for (let item of items) {
+
+    for (const item of items) {
       const entry = item.webkitGetAsEntry();
       if (entry) {
         if (entry.isDirectory) {
           await this.traverseDirectory(entry, files);
         } else {
           const file = await new Promise(resolve => entry.file(resolve));
-          if (file) files.push(file);
+          if (file) {files.push(file);}
         }
       }
     }
@@ -199,7 +199,7 @@ class ImageConverterPro {
     const readEntries = () => new Promise(resolve => {
       reader.readEntries(async entries => {
         if (entries.length === 0) { resolve(); return; }
-        for (let entry of entries) {
+        for (const entry of entries) {
           if (entry.isDirectory) {
             await this.traverseDirectory(entry, files);
           } else {
@@ -216,7 +216,7 @@ class ImageConverterPro {
 
   handleFileSelect(e) {
     const files = Array.from(e.target.files).map(file => {
-      if (file.webkitRelativePath) file.relativePath = '/' + file.webkitRelativePath;
+      if (file.webkitRelativePath) {file.relativePath = '/' + file.webkitRelativePath;}
       return file;
     });
     this.processFiles(files);
@@ -242,12 +242,12 @@ class ImageConverterPro {
       return true;
     });
 
-    if (validFiles.length === 0) return;
+    if (validFiles.length === 0) {return;}
 
     this.selectedFiles = [...this.selectedFiles, ...validFiles];
     document.getElementById('convertBtn').disabled = false;
     this.applyToAllBtn.disabled = false;
-    
+
     this.showToast('success', 'Archivos agregados', `${validFiles.length} imagen(es) lista(s)`);
     this.renderPreview();
     this.updateStats();
@@ -259,18 +259,18 @@ class ImageConverterPro {
       this.previewSection.style.display = 'none';
       return;
     }
-    
+
     this.previewSection.style.display = 'block';
     this.previewList.innerHTML = '';
-    
+
     this.selectedFiles.slice(0, 20).forEach((file, i) => {
       const item = document.createElement('div');
       item.className = 'preview-item';
       item.dataset.index = i;
-      
+
       const isSelected = this.selectedForFilters.has(i);
       const hasFilters = this.fileFilters.has(i);
-      
+
       item.innerHTML = `
         <input type="checkbox" class="preview-checkbox" data-index="${i}" ${isSelected ? 'checked' : ''}>
         ${hasFilters ? '<div class="filter-indicator"><i class="fas fa-magic"></i></div>' : ''}
@@ -283,9 +283,9 @@ class ImageConverterPro {
           <i class="fas fa-times"></i>
         </button>
       `;
-      
-      if (isSelected) item.classList.add('selected-for-filters');
-      
+
+      if (isSelected) {item.classList.add('selected-for-filters');}
+
       const checkbox = item.querySelector('.preview-checkbox');
       checkbox.addEventListener('change', (e) => {
         if (e.target.checked) {
@@ -297,24 +297,24 @@ class ImageConverterPro {
         }
         this.updateApplyButtons();
       });
-      
+
       item.addEventListener('click', (e) => {
         if (!e.target.closest('input') && !e.target.closest('button')) {
           checkbox.checked = !checkbox.checked;
           checkbox.dispatchEvent(new Event('change'));
         }
       });
-      
+
       this.loadThumbnail(file, item.querySelector('img'));
-      
+
       item.querySelector('.preview-item-remove').addEventListener('click', (e) => {
         e.stopPropagation();
         this.removeFile(i);
       });
-      
+
       this.previewList.appendChild(item);
     });
-    
+
     if (this.selectedFiles.length > 20) {
       const more = document.createElement('div');
       more.className = 'preview-item';
@@ -330,7 +330,7 @@ class ImageConverterPro {
       img.src = this.thumbnailCache.get(key);
       return;
     }
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const image = new Image();
@@ -338,7 +338,7 @@ class ImageConverterPro {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const maxSize = 150;
-        let { width, height } = this.calculateDimensions(image.width, image.height, maxSize);
+        const { width, height } = this.calculateDimensions(image.width, image.height, maxSize);
         canvas.width = width;
         canvas.height = height;
         ctx.drawImage(image, 0, 0, width, height);
@@ -364,18 +364,18 @@ class ImageConverterPro {
       this.filtersPreviewInfo.style.display = 'none';
       return;
     }
-    
+
     // Usar primera imagen o la seleccionada para preview
     const file = this.selectedFiles[this.previewImageIndex] || this.selectedFiles[0];
-    
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        let { width, height } = this.calculateDimensions(img.width, img.height, 400);
-        
+        const { width, height } = this.calculateDimensions(img.width, img.height, 400);
+
         if (this.filters.rotation === 90 || this.filters.rotation === 270) {
           canvas.width = height;
           canvas.height = width;
@@ -383,20 +383,20 @@ class ImageConverterPro {
           canvas.width = width;
           canvas.height = height;
         }
-        
+
         ctx.save();
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((this.filters.rotation * Math.PI) / 180);
         ctx.filter = this.getCSSFilter();
         ctx.drawImage(img, -width / 2, -height / 2, width, height);
         ctx.restore();
-        
+
         this.filtersPreviewContainer.innerHTML = '';
         const previewImg = document.createElement('img');
         previewImg.src = canvas.toDataURL();
         previewImg.alt = 'Vista previa';
         this.filtersPreviewContainer.appendChild(previewImg);
-        
+
         this.previewImageName.textContent = file.name;
         this.filtersPreviewInfo.style.display = 'flex';
       };
@@ -406,16 +406,16 @@ class ImageConverterPro {
   }
 
   changePreviewImage() {
-    if (this.selectedFiles.length === 0) return;
+    if (this.selectedFiles.length === 0) {return;}
     this.previewImageIndex = (this.previewImageIndex + 1) % Math.min(this.selectedFiles.length, 5);
     this.updateFilterPreview();
   }
 
   getCSSFilter() {
     const filters = [];
-    if (this.filters.filter === 'grayscale') filters.push('grayscale(100%)');
-    if (this.filters.filter === 'sepia') filters.push('sepia(100%)');
-    if (this.filters.filter === 'blur') filters.push('blur(5px)');
+    if (this.filters.filter === 'grayscale') {filters.push('grayscale(100%)');}
+    if (this.filters.filter === 'sepia') {filters.push('sepia(100%)');}
+    if (this.filters.filter === 'blur') {filters.push('blur(5px)');}
     filters.push(`brightness(${this.filters.brightness}%)`);
     filters.push(`contrast(${this.filters.contrast}%)`);
     filters.push(`saturate(${this.filters.saturation}%)`);
@@ -472,9 +472,8 @@ class ImageConverterPro {
     }
 
     this.isProcessing = true;
-    const startTime = Date.now();
     this.processedImages = [];
-    
+
     const maxWidth = parseInt(document.getElementById('maxWidth').value) || 1920;
     const quality = parseInt(document.getElementById('quality').value) / 100;
     const format = document.getElementById('outputFormat').value;
@@ -486,7 +485,7 @@ class ImageConverterPro {
 
     for (let i = 0; i < this.selectedFiles.length; i++) {
       this.updateProgress(i, this.selectedFiles.length, this.selectedFiles[i].name);
-      
+
       try {
         // Usar filtros específicos del archivo o los globales
         const fileFilters = this.fileFilters.get(i) || this.filters;
@@ -502,11 +501,11 @@ class ImageConverterPro {
     document.getElementById('progressFill').style.width = '100%';
     document.getElementById('progressPercentage').textContent = '100%';
     document.getElementById('progressPhase').textContent = 'Completado';
-    
+
     const originalSize = this.processedImages.reduce((a, b) => a + b.originalSize, 0);
     const compressedSize = this.processedImages.reduce((a, b) => a + b.size, 0);
     this.addToHistory(this.selectedFiles.length, originalSize, compressedSize);
-    
+
     this.showToast('success', 'Conversión completada', `${this.processedImages.length} imagen(es) procesadas`);
     this.isProcessing = false;
     document.getElementById('convertBtn').disabled = false;
@@ -554,8 +553,8 @@ class ImageConverterPro {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             const rotation = fileFilters.rotation;
-            let { width, height } = this.calculateDimensions(img.width, img.height, maxWidth);
-            
+            const { width, height } = this.calculateDimensions(img.width, img.height, maxWidth);
+
             if (rotation === 90 || rotation === 270) {
               canvas.width = height;
               canvas.height = width;
@@ -563,30 +562,30 @@ class ImageConverterPro {
               canvas.width = width;
               canvas.height = height;
             }
-            
+
             ctx.save();
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((rotation * Math.PI) / 180);
-            
+
             const filters = [];
-            if (fileFilters.filter === 'grayscale') filters.push('grayscale(100%)');
-            if (fileFilters.filter === 'sepia') filters.push('sepia(100%)');
-            if (fileFilters.filter === 'blur') filters.push('blur(5px)');
+            if (fileFilters.filter === 'grayscale') {filters.push('grayscale(100%)');}
+            if (fileFilters.filter === 'sepia') {filters.push('sepia(100%)');}
+            if (fileFilters.filter === 'blur') {filters.push('blur(5px)');}
             filters.push(`brightness(${fileFilters.brightness}%)`);
             filters.push(`contrast(${fileFilters.contrast}%)`);
             filters.push(`saturate(${fileFilters.saturation}%)`);
             ctx.filter = filters.join(' ');
-            
+
             ctx.drawImage(img, -width / 2, -height / 2, width, height);
             ctx.restore();
-            
+
             let mimeType = 'image/webp', extension = 'webp';
             if (format === 'jpeg') { mimeType = 'image/jpeg'; extension = 'jpg'; }
             if (format === 'png') { mimeType = 'image/png'; extension = 'png'; }
-            
+
             const dataUrl = canvas.toDataURL(mimeType, quality);
             const size = Math.round((dataUrl.split(',')[1].length * 3) / 4);
-            
+
             resolve({
               originalName: file.name,
               name: `${file.name.replace(/\.[^/.]+$/, '')}.${extension}`,
@@ -632,9 +631,9 @@ class ImageConverterPro {
     const item = document.createElement('div');
     item.className = 'gallery-item';
     item.style.animation = `fadeIn 0.3s ease ${index * 0.1}s both`;
-    
+
     const savings = ((1 - image.size / image.originalSize) * 100).toFixed(1);
-    
+
     item.innerHTML = `
       <div class="image-preview">
         <img src="${image.dataUrl}" alt="${image.name}" loading="lazy">
@@ -656,7 +655,7 @@ class ImageConverterPro {
         </a>
       </div>
     `;
-    
+
     item.querySelector('.compare-btn').addEventListener('click', () => this.showComparison(image));
     document.getElementById('gallery').appendChild(item);
   }
@@ -666,72 +665,72 @@ class ImageConverterPro {
     const originalImg = document.getElementById('compareOriginal');
     const compressedImg = document.getElementById('compareCompressed');
     const slider = document.getElementById('compareSlider');
-    
+
     originalImg.src = image.originalDataUrl;
     compressedImg.src = image.dataUrl;
     document.getElementById('compareOriginalInfo').textContent = `${image.originalWidth}×${image.originalHeight}px • ${this.formatSize(image.originalSize)}`;
     document.getElementById('compareCompressedInfo').textContent = `${image.width}×${image.height}px • ${this.formatSize(image.size)}`;
-    
+
     modal.style.display = 'flex';
-    
+
     // Configurar slider interactivo
     let isDragging = false;
-    
+
     const updateSlider = (clientX) => {
       const container = modal.querySelector('.compare-images');
       const rect = container.getBoundingClientRect();
       let percentage = ((clientX - rect.left) / rect.width) * 100;
       percentage = Math.max(0, Math.min(100, percentage));
-      
+
       slider.style.left = `${percentage}%`;
       originalImg.style.width = `${percentage}%`;
       slider.setAttribute('aria-valuenow', Math.round(percentage));
     };
-    
+
     // Eventos del mouse
     const handleMouseMove = (e) => {
-      if (!isDragging) return;
+      if (!isDragging) {return;}
       updateSlider(e.clientX);
     };
-    
+
     const handleMouseUp = () => {
       isDragging = false;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     slider.addEventListener('mousedown', (e) => {
       isDragging = true;
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       e.preventDefault();
     });
-    
+
     // Eventos táctiles
     const handleTouchMove = (e) => {
-      if (!isDragging) return;
+      if (!isDragging) {return;}
       updateSlider(e.touches[0].clientX);
     };
-    
+
     const handleTouchEnd = () => {
       isDragging = false;
       document.removeEventListener('touchmove', handleTouchMove);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-    
-    slider.addEventListener('touchstart', (e) => {
+
+    slider.addEventListener('touchstart', () => {
       isDragging = true;
       document.addEventListener('touchmove', handleTouchMove, { passive: false });
       document.addEventListener('touchend', handleTouchEnd);
     }, { passive: true });
-    
+
     // Click en la imagen para saltar
     modal.querySelector('.compare-images').addEventListener('click', (e) => {
       if (e.target !== slider && !slider.contains(e.target)) {
         updateSlider(e.clientX);
       }
     });
-    
+
     // Centrar inicialmente
     setTimeout(() => {
       const container = modal.querySelector('.compare-images');
@@ -741,7 +740,7 @@ class ImageConverterPro {
   }
 
   formatSize(bytes) {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) {return '0 B';}
     const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
@@ -765,8 +764,8 @@ class ImageConverterPro {
     // Reindexar los filtros guardados
     const newFilters = new Map();
     this.fileFilters.forEach((filters, oldIndex) => {
-      if (oldIndex < index) newFilters.set(oldIndex, filters);
-      else if (oldIndex > index) newFilters.set(oldIndex - 1, filters);
+      if (oldIndex < index) {newFilters.set(oldIndex, filters);}
+      else if (oldIndex > index) {newFilters.set(oldIndex - 1, filters);}
     });
     this.fileFilters = newFilters;
     this.renderPreview();
@@ -817,20 +816,20 @@ class ImageConverterPro {
       this.showToast('warning', 'Sin imágenes', 'No hay imágenes para descargar');
       return;
     }
-    
+
     this.showToast('info', 'Creando ZIP', 'Generando archivo...');
-    
+
     try {
       const zip = new JSZip();
       const maintainStructure = document.getElementById('maintainStructure').checked;
-      
+
       this.processedImages.forEach(img => {
         const base64Data = img.dataUrl.split(',')[1];
         let path = img.name;
-        if (maintainStructure && img.relativePath) path = img.relativePath + '/' + img.name;
+        if (maintainStructure && img.relativePath) {path = img.relativePath + '/' + img.name;}
         zip.file(path, base64Data, { base64: true });
       });
-      
+
       const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
@@ -838,7 +837,7 @@ class ImageConverterPro {
       link.download = `imagenes-convertidas-${Date.now()}.zip`;
       link.click();
       URL.revokeObjectURL(url);
-      
+
       this.showToast('success', 'ZIP descargado', 'Todas las imágenes comprimidas');
     } catch (error) {
       this.showToast('error', 'Error', 'No se pudo crear el ZIP');
@@ -857,9 +856,9 @@ class ImageConverterPro {
       savingsPercent: savings,
       format: document.getElementById('outputFormat').value
     };
-    
+
     this.conversionHistory.unshift(historyItem);
-    if (this.conversionHistory.length > 20) this.conversionHistory = this.conversionHistory.slice(0, 20);
+    if (this.conversionHistory.length > 20) {this.conversionHistory = this.conversionHistory.slice(0, 20);}
     localStorage.setItem('conversionHistory', JSON.stringify(this.conversionHistory));
     this.renderHistory();
   }
@@ -875,11 +874,11 @@ class ImageConverterPro {
       `;
       return;
     }
-    
+
     list.innerHTML = this.conversionHistory.slice(0, 5).map(item => {
       const date = new Date(item.date);
       const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-      
+
       return `
         <div class="history-item">
           <div class="history-info">
@@ -927,7 +926,7 @@ class ImageConverterPro {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
-    
+
     toast.innerHTML = `
       <i class="fas ${icons[type]}"></i>
       <div class="toast-content">
@@ -936,10 +935,10 @@ class ImageConverterPro {
       </div>
       <button class="toast-close"><i class="fas fa-times"></i></button>
     `;
-    
+
     toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
     this.toastContainer.appendChild(toast);
-    
+
     setTimeout(() => {
       if (toast.parentNode) {
         toast.style.animation = 'fadeOut 0.3s forwards';
@@ -951,22 +950,22 @@ class ImageConverterPro {
 
 document.addEventListener('DOMContentLoaded', () => {
   new ImageConverterPro();
-  
+
   // Eventos del modal de comparación
   const compareModal = document.getElementById('compareModal');
-  
+
   // Cerrar con el botón X
   compareModal.querySelector('.close-modal').addEventListener('click', () => {
     compareModal.style.display = 'none';
   });
-  
+
   // Cerrar al hacer click fuera del contenido
   compareModal.addEventListener('click', (e) => {
     if (e.target === compareModal) {
       compareModal.style.display = 'none';
     }
   });
-  
+
   // Cerrar con la tecla Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && compareModal.style.display === 'flex') {
