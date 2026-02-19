@@ -13,14 +13,14 @@
   <meta property="og:url" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/">
   <meta property="og:title" content="Convertidor de Imágenes Pro">
   <meta property="og:description" content="Convierte, comprime y optimiza tus imágenes fácilmente. Soporte para WebP, JPEG y PNG con filtros profesionales.">
-  <meta property="og:image" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/docs/og-image.png">
+  <meta property="og:image" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/docs/images/screenshot-demo.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/">
   <meta property="twitter:title" content="Convertidor de Imágenes Pro">
   <meta property="twitter:description" content="Convierte, comprime y optimiza tus imágenes fácilmente. Soporte para WebP, JPEG y PNG con filtros profesionales.">
-  <meta property="twitter:image" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/docs/og-image.png">
+  <meta property="twitter:image" content="https://johan2214.github.io/Convertidor-de-Im-genes-Pro/docs/images/screenshot-demo.png">
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
@@ -72,179 +72,249 @@
       <!-- Panel de archivos seleccionados (Preview) -->
       <div class="preview-section" id="previewSection" style="display: none;">
         <div class="preview-header">
-          <h3><i class="fas fa-eye" aria-hidden="true"></i> Archivos seleccionados</h3>
+          <h3><i class="fas fa-eye" aria-hidden="true"></i> Archivos seleccionados <span class="file-count-badge" id="fileCountBadge">0</span></h3>
           <button id="clearFilesBtn" class="btn-text">
-            <i class="fas fa-trash" aria-hidden="true"></i> Limpiar selección
+            <i class="fas fa-trash" aria-hidden="true"></i> Limpiar
           </button>
         </div>
         <div class="preview-list" id="previewList"></div>
+        <div class="preview-quick-stats" id="previewQuickStats">
+          <span><i class="fas fa-images"></i> <span id="quickTotalFiles">0</span> archivos</span>
+          <span><i class="fas fa-weight-hanging"></i> <span id="quickTotalSize">0 MB</span></span>
+        </div>
       </div>
 
-      <!-- Panel de controles -->
-      <div class="controls-panel" id="controlsPanel">
-        <div class="control-group">
-          <label for="maxWidth">
-            <i class="fas fa-expand-arrows-alt" aria-hidden="true"></i> Ancho máximo
-            <span class="tooltip" title="Las imágenes más grandes se redimensionarán manteniendo la proporción" tabindex="0">
-              <i class="fas fa-question-circle" aria-hidden="true"></i>
-            </span>
-          </label>
-          <div class="input-wrapper">
-            <input type="number" id="maxWidth" value="1920" min="100" max="8000" step="10" aria-describedby="maxWidthHelp">
-            <span class="unit">px</span>
-          </div>
-          <small id="maxWidthHelp" class="help-text">Las imágenes más grandes se redimensionarán proporcionalmente</small>
+      <!-- Sistema de Tabs -->
+      <div class="tabs-container" id="tabsContainer">
+        <div class="tabs-header">
+          <button class="tab-btn active" data-tab="config" aria-selected="true">
+            <i class="fas fa-cog" aria-hidden="true"></i>
+            <span>Configuración</span>
+          </button>
+          <button class="tab-btn" data-tab="filters" aria-selected="false">
+            <i class="fas fa-magic" aria-hidden="true"></i>
+            <span>Filtros</span>
+            <span class="tab-badge" id="filtersBadge" style="display: none;" aria-label="Filtros activos">●</span>
+          </button>
+          <button class="tab-btn" data-tab="history" aria-selected="false">
+            <i class="fas fa-history" aria-hidden="true"></i>
+            <span>Historial</span>
+          </button>
         </div>
 
-        <div class="control-group">
-          <label for="quality">
-            <i class="fas fa-gem" aria-hidden="true"></i> Calidad
-            <span class="value-display" id="qualityValue">85%</span>
-          </label>
-          <input type="range" id="quality" min="10" max="100" value="85" class="slider" aria-label="Calidad de compresión">
-          <div class="slider-labels">
-            <span>Menor tamaño</span>
-            <span>Mejor calidad</span>
-          </div>
-        </div>
+        <div class="tabs-content">
+          <!-- Tab Configuración -->
+          <div class="tab-panel active" id="config-tab" role="tabpanel" aria-labelledby="tab-config">
+            <div class="config-section">
+              <!-- Controles primarios -->
+              <div class="primary-controls">
+                <div class="control-row">
+                  <div class="control-group">
+                    <label for="outputFormat">
+                      <i class="fas fa-file-image" aria-hidden="true"></i> Formato de salida
+                    </label>
+                    <select id="outputFormat" aria-label="Seleccionar formato de salida">
+                      <option value="webp">WebP (Recomendado)</option>
+                      <option value="jpeg">JPEG</option>
+                      <option value="png">PNG</option>
+                    </select>
+                  </div>
 
-        <div class="control-group">
-          <label for="outputFormat">
-            <i class="fas fa-file-image" aria-hidden="true"></i> Formato de salida
-          </label>
-          <select id="outputFormat" aria-label="Seleccionar formato de salida">
-            <option value="webp">WebP (Recomendado)</option>
-            <option value="jpeg">JPEG</option>
-            <option value="png">PNG</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label for="namingPattern">
-            <i class="fas fa-tag" aria-hidden="true"></i> Patrón de nombres
-          </label>
-          <select id="namingPattern" aria-label="Patrón de renombrado">
-            <option value="original">{nombre-original} - Mantener nombre original</option>
-            <option value="number">{numero} - Numeración secuencial</option>
-            <option value="date">{fecha} - Fecha y hora</option>
-            <option value="custom">Personalizado...</option>
-          </select>
-          <div class="custom-pattern-input" id="customPatternInput" style="display: none;">
-            <input type="text" id="customPattern" placeholder="Ej: imagen-{numero}-{fecha}" aria-label="Patrón personalizado">
-            <small class="help-text">
-              Variables disponibles: {nombre}, {numero}, {fecha}, {hora}, {dimensiones}
-            </small>
-          </div>
-        </div>
-
-        <div class="control-group checkbox-group">
-          <label class="checkbox-label" for="keepMetadata">
-            <input type="checkbox" id="keepMetadata">
-            <span class="checkmark"></span>
-            <span class="label-text">Mantener metadata (EXIF)</span>
-          </label>
-        </div>
-
-        <div class="control-group checkbox-group">
-          <label class="checkbox-label" for="maintainStructure">
-            <input type="checkbox" id="maintainStructure" checked>
-            <span class="checkmark"></span>
-            <span class="label-text">Mantener estructura de carpetas</span>
-          </label>
-        </div>
-
-        <button id="convertBtn" class="btn-primary" disabled>
-          <i class="fas fa-magic" aria-hidden="true"></i> Convertir imágenes
-        </button>
-      </div>
-
-      <!-- Panel de filtros y efectos -->
-      <div class="filters-panel" id="filtersPanel">
-        <div class="filters-header">
-          <h3><i class="fas fa-magic" aria-hidden="true"></i> Filtros y efectos</h3>
-          <div class="filters-actions">
-            <button id="applyToSelectedBtn" class="btn-filter-action" disabled>
-              <i class="fas fa-check-square" aria-hidden="true"></i> Aplicar a seleccionadas
-            </button>
-            <button id="applyToAllBtn" class="btn-filter-action" disabled>
-              <i class="fas fa-th" aria-hidden="true"></i> Aplicar a todas
-            </button>
-            <button id="resetFiltersBtn" class="btn-filter-action secondary">
-              <i class="fas fa-undo" aria-hidden="true"></i> Restablecer
-            </button>
-          </div>
-        </div>
-        
-        <div class="filters-main">
-          <div class="filters-preview-section">
-            <label class="preview-label">Vista previa del filtro</label>
-            <div class="filters-preview-container" id="filtersPreviewContainer">
-              <div class="filters-preview-placeholder">
-                <i class="fas fa-image" aria-hidden="true"></i>
-                <p>Selecciona imágenes para ver la vista previa</p>
-              </div>
-            </div>
-            <div class="filters-preview-info" id="filtersPreviewInfo" style="display: none;">
-              <span id="previewImageName"></span>
-              <button id="changePreviewBtn" class="btn-text-small">
-                <i class="fas fa-random" aria-hidden="true"></i> Cambiar imagen
-              </button>
-            </div>
-          </div>
-          
-          <div class="filters-controls-section">
-            <div class="filters-grid">
-              <div class="filter-group">
-                <label>Rotación</label>
-                <div class="rotation-controls">
-                  <button class="btn-rotate" data-rotate="-90" title="Rotar 90° izquierda" aria-label="Rotar 90 grados a la izquierda">
-                    <i class="fas fa-undo" aria-hidden="true"></i>
-                  </button>
-                  <button class="btn-rotate" data-rotate="90" title="Rotar 90° derecha" aria-label="Rotar 90 grados a la derecha">
-                    <i class="fas fa-redo" aria-hidden="true"></i>
-                  </button>
-                  <button class="btn-rotate" data-rotate="180" title="Rotar 180°" aria-label="Rotar 180 grados">
-                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
-                  </button>
-                  <span id="rotationValue">0°</span>
+                  <div class="control-group">
+                    <label for="quality">
+                      <i class="fas fa-gem" aria-hidden="true"></i> Calidad
+                      <span class="value-display" id="qualityValue">85%</span>
+                    </label>
+                    <input type="range" id="quality" min="10" max="100" value="85" class="slider" aria-label="Calidad de compresión">
+                    <div class="slider-hints">
+                      <span>Menor tamaño</span>
+                      <span>Mejor calidad</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="filter-group">
-                <label for="filterType">Filtro</label>
-                <select id="filterType">
-                  <option value="none">Ninguno</option>
-                  <option value="grayscale">Escala de grises</option>
-                  <option value="sepia">Sepia</option>
-                  <option value="blur">Desenfoque</option>
-                  <option value="sharpen">Nitidez</option>
-                </select>
+              <!-- Opciones avanzadas colapsables -->
+              <details class="advanced-options" id="advancedOptions">
+                <summary>
+                  <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                  <span>Opciones avanzadas</span>
+                </summary>
+                <div class="advanced-content">
+                  <div class="control-group">
+                    <label for="maxWidth">
+                      <i class="fas fa-expand-arrows-alt" aria-hidden="true"></i> Ancho máximo
+                    </label>
+                    <div class="input-with-unit">
+                      <input type="number" id="maxWidth" value="1920" min="100" max="8000" step="10" aria-describedby="maxWidthHelp">
+                      <span class="unit">px</span>
+                    </div>
+                    <small id="maxWidthHelp" class="help-text">Las imágenes más grandes se redimensionarán proporcionalmente</small>
+                  </div>
+
+                  <div class="control-group">
+                    <label for="namingPattern">
+                      <i class="fas fa-tag" aria-hidden="true"></i> Patrón de nombres
+                    </label>
+                    <select id="namingPattern" aria-label="Patrón de renombrado">
+                      <option value="original">Mantener nombre original</option>
+                      <option value="number">Numeración secuencial</option>
+                      <option value="date">Fecha y hora</option>
+                      <option value="custom">Personalizado...</option>
+                    </select>
+                    <div class="custom-pattern-input" id="customPatternInput" style="display: none;">
+                      <input type="text" id="customPattern" placeholder="Ej: imagen-{numero}-{fecha}" aria-label="Patrón personalizado">
+                      <small class="help-text">Variables: {nombre}, {numero}, {fecha}, {hora}, {dimensiones}</small>
+                    </div>
+                  </div>
+
+                  <div class="control-group checkbox-group">
+                    <label class="checkbox-label" for="maintainStructure">
+                      <input type="checkbox" id="maintainStructure" checked>
+                      <span class="checkmark"></span>
+                      <span class="label-text">Mantener estructura de carpetas</span>
+                    </label>
+                  </div>
+                </div>
+              </details>
+
+              <!-- Botón de conversión principal -->
+              <button id="convertBtn" class="btn-convert-primary" disabled>
+                <span class="btn-icon"><i class="fas fa-magic" aria-hidden="true"></i></span>
+                <span class="btn-text">Convertir imágenes</span>
+                <span class="btn-count" id="convertCount"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Filtros -->
+          <div class="tab-panel" id="filters-tab" role="tabpanel" aria-labelledby="tab-filters">
+            <div class="filters-intro">
+              <p><i class="fas fa-info-circle" aria-hidden="true"></i> Los filtros son opcionales. Se aplicarán durante la conversión.</p>
+            </div>
+
+            <!-- Presets rápidos -->
+            <div class="filter-presets">
+              <h4>Presets rápidos</h4>
+              <div class="preset-buttons">
+                <button class="preset-btn active" data-preset="none" aria-label="Sin filtros">
+                  <i class="fas fa-image" aria-hidden="true"></i>
+                  <span>Normal</span>
+                </button>
+                <button class="preset-btn" data-preset="grayscale" aria-label="Escala de grises">
+                  <i class="fas fa-adjust" aria-hidden="true"></i>
+                  <span>B/N</span>
+                </button>
+                <button class="preset-btn" data-preset="sepia" aria-label="Sepia">
+                  <i class="fas fa-coffee" aria-hidden="true"></i>
+                  <span>Sepia</span>
+                </button>
+                <button class="preset-btn" data-preset="vintage" aria-label="Vintage">
+                  <i class="fas fa-film" aria-hidden="true"></i>
+                  <span>Vintage</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Vista previa de filtros -->
+            <div class="filter-preview-section">
+              <h4>Vista previa</h4>
+              <div class="filter-preview-container" id="filtersPreviewContainer">
+                <div class="filters-preview-placeholder" id="filterPlaceholder">
+                  <i class="fas fa-image" aria-hidden="true"></i>
+                  <p>Selecciona imágenes para previsualizar</p>
+                </div>
+                <img id="filterPreviewImg" alt="Vista previa del filtro" style="display: none;">
+              </div>
+              <div class="filter-preview-controls" id="filterPreviewControls" style="display: none;">
+                <button id="prevPreviewBtn" class="btn-icon" aria-label="Imagen anterior">
+                  <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                </button>
+                <span id="previewImageName">imagen.jpg</span>
+                <button id="nextPreviewBtn" class="btn-icon" aria-label="Imagen siguiente">
+                  <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Ajustes finos -->
+            <div class="filter-custom-controls">
+              <h4>Ajustes personalizados</h4>
+              
+              <div class="filter-control-row">
+                <div class="filter-control">
+                  <label>Rotación</label>
+                  <div class="rotation-buttons">
+                    <button class="btn-rotate" data-rotate="-90" title="Rotar 90° izquierda" aria-label="Rotar 90 grados a la izquierda">
+                      <i class="fas fa-undo" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn-rotate" data-rotate="180" title="Rotar 180°" aria-label="Rotar 180 grados">
+                      <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn-rotate" data-rotate="90" title="Rotar 90° derecha" aria-label="Rotar 90 grados a la derecha">
+                      <i class="fas fa-redo" aria-hidden="true"></i>
+                    </button>
+                    <span id="rotationValue">0°</span>
+                  </div>
+                </div>
               </div>
 
-              <div class="filter-group">
-                <label for="brightness">Brillo</label>
-                <input type="range" id="brightness" min="0" max="200" value="100" class="slider">
-                <span class="filter-value" id="brightnessValue">100%</span>
-              </div>
+              <div class="filter-sliders">
+                <div class="filter-slider-group">
+                  <label for="brightness">Brillo <span id="brightnessValue">100%</span></label>
+                  <input type="range" id="brightness" min="0" max="200" value="100" class="slider">
+                </div>
 
-              <div class="filter-group">
-                <label for="contrast">Contraste</label>
-                <input type="range" id="contrast" min="0" max="200" value="100" class="slider">
-                <span class="filter-value" id="contrastValue">100%</span>
-              </div>
+                <div class="filter-slider-group">
+                  <label for="contrast">Contraste <span id="contrastValue">100%</span></label>
+                  <input type="range" id="contrast" min="0" max="200" value="100" class="slider">
+                </div>
 
-              <div class="filter-group">
-                <label for="saturation">Saturación</label>
-                <input type="range" id="saturation" min="0" max="200" value="100" class="slider">
-                <span class="filter-value" id="saturationValue">100%</span>
+                <div class="filter-slider-group">
+                  <label for="saturation">Saturación <span id="saturationValue">100%</span></label>
+                  <input type="range" id="saturation" min="0" max="200" value="100" class="slider">
+                </div>
+              </div>
+            </div>
+
+            <!-- Acciones de filtros -->
+            <div class="filter-actions">
+              <button id="applyFiltersBtn" class="btn-secondary" disabled>
+                <i class="fas fa-check" aria-hidden="true"></i> Aplicar a seleccionadas
+              </button>
+              <button id="resetFiltersBtn" class="btn-text">
+                <i class="fas fa-undo" aria-hidden="true"></i> Restablecer
+              </button>
+            </div>
+
+            <!-- Estado de filtros -->
+            <div class="filter-status" id="filterStatus" style="display: none;">
+              <i class="fas fa-magic" aria-hidden="true"></i>
+              <span>Filtros activos</span>
+            </div>
+          </div>
+
+          <!-- Tab Historial -->
+          <div class="tab-panel" id="history-tab" role="tabpanel" aria-labelledby="tab-history">
+            <div class="history-header">
+              <h3><i class="fas fa-history" aria-hidden="true"></i> Historial de conversiones</h3>
+              <button id="clearHistoryBtn" class="btn-text-small">
+                <i class="fas fa-trash" aria-hidden="true"></i> Limpiar historial
+              </button>
+            </div>
+            <div class="history-list" id="historyList">
+              <div class="history-empty" id="historyEmpty">
+                <i class="fas fa-history" aria-hidden="true"></i>
+                <p>No hay conversiones recientes</p>
+                <small>El historial se guarda automáticamente en tu navegador</small>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Barra de progreso detallada -->
-      <div class="progress-section" id="progressSection" role="status" aria-live="polite" aria-atomic="true">
+      <!-- Barra de progreso -->
+      <div class="progress-section" id="progressSection" role="status" aria-live="polite" aria-atomic="true" style="display: none;">
         <div class="progress-info">
           <span id="progressPhase">Preparando...</span>
           <span id="progressCount">0/0</span>
@@ -259,58 +329,42 @@
         <div class="time-estimate" id="timeEstimate"></div>
       </div>
 
-      <!-- Estadísticas -->
-      <div class="stats-section" id="statsSection" role="region" aria-label="Estadísticas">
-        <div class="stat-card">
-          <i class="fas fa-images" aria-hidden="true"></i>
-          <div class="stat-info">
-            <span class="stat-value" id="totalImages">0</span>
-            <span class="stat-label">Imágenes</span>
+      <!-- Sección de Resultados -->
+      <div class="results-section" id="resultsSection" style="display: none;">
+        <div class="results-header">
+          <div class="results-title">
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
+            <h3>¡Conversión completada!</h3>
+          </div>
+          <div class="results-stats-badges">
+            <span class="stat-badge">
+              <i class="fas fa-images" aria-hidden="true"></i>
+              <span id="resultCount">0 imágenes</span>
+            </span>
+            <span class="stat-badge success">
+              <i class="fas fa-compress-arrows-alt" aria-hidden="true"></i>
+              <span id="resultSizes">0 MB → 0 MB</span>
+            </span>
+            <span class="stat-badge success highlight">
+              <i class="fas fa-percentage" aria-hidden="true"></i>
+              <span id="resultSavings">-0%</span>
+            </span>
           </div>
         </div>
-        <div class="stat-card">
-          <i class="fas fa-weight-hanging" aria-hidden="true"></i>
-          <div class="stat-info">
-            <span class="stat-value" id="originalSize">0 MB</span>
-            <span class="stat-label">Tamaño original</span>
-          </div>
+
+        <div class="results-actions">
+          <button id="downloadZipBtn" class="btn-primary btn-large">
+            <i class="fas fa-file-archive" aria-hidden="true"></i>
+            Descargar todas (ZIP)
+          </button>
+          <button id="clearResultsBtn" class="btn-secondary">
+            <i class="fas fa-redo" aria-hidden="true"></i>
+            Convertir más imágenes
+          </button>
         </div>
-        <div class="stat-card">
-          <i class="fas fa-compress-arrows-alt" aria-hidden="true"></i>
-          <div class="stat-info">
-            <span class="stat-value" id="compressedSize">0 MB</span>
-            <span class="stat-label">Tamaño final</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <i class="fas fa-percentage" aria-hidden="true"></i>
-          <div class="stat-info">
-            <span class="stat-value" id="savingsPercent">0%</span>
-            <span class="stat-label">Ahorro</span>
-          </div>
-        </div>
+
+        <div class="gallery" id="gallery" role="region" aria-label="Resultados de conversión"></div>
       </div>
-
-      <!-- Botón de descarga ZIP -->
-      <div class="download-section" id="downloadSection">
-        <button id="downloadZipBtn" class="btn-secondary">
-          <i class="fas fa-file-archive" aria-hidden="true"></i> Descargar todas (ZIP)
-        </button>
-        <button id="clearAllBtn" class="btn-text">
-          <i class="fas fa-trash" aria-hidden="true"></i> Limpiar todo
-        </button>
-      </div>
-
-      <!-- Galería de resultados -->
-      <div class="gallery" id="gallery" role="region" aria-label="Resultados de conversión"></div>
-
-      <!-- Historial -->
-      <div class="history-section" id="historySection" role="region" aria-label="Historial de conversiones">
-        <h3><i class="fas fa-history" aria-hidden="true"></i> Historial de conversiones</h3>
-        <div class="history-list" id="historyList"></div>
-      </div>
-
-
     </main>
   </div>
 
