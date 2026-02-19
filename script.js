@@ -257,11 +257,15 @@ class ImageConverterPro {
   renderPreview() {
     if (this.selectedFiles.length === 0) {
       this.previewSection.style.display = 'none';
+      updateConvertButtonCount(0);
       return;
     }
 
     this.previewSection.style.display = 'block';
     this.previewList.innerHTML = '';
+
+    // Actualizar badge de conteo
+    updateConvertButtonCount(this.selectedFiles.length);
 
     this.selectedFiles.slice(0, 20).forEach((file, i) => {
       const item = document.createElement('div');
@@ -510,6 +514,11 @@ class ImageConverterPro {
     this.isProcessing = false;
     document.getElementById('convertBtn').disabled = false;
     this.updateFinalStats(originalSize, compressedSize);
+
+    // Ocultar progreso y mostrar resultados
+    document.getElementById('progressSection').style.display = 'none';
+    showResults(this.processedImages.length, originalSize, compressedSize);
+
     this.clearSelection();
   }
 
@@ -750,6 +759,9 @@ class ImageConverterPro {
     document.getElementById('totalImages').textContent = this.selectedFiles.length;
     const totalSize = this.selectedFiles.reduce((a, b) => a + b.size, 0);
     document.getElementById('originalSize').textContent = this.formatSize(totalSize);
+
+    // Actualizar estadísticas rápidas del preview
+    updateQuickStats(this.selectedFiles.length, totalSize);
   }
 
   updateFinalStats(originalSize, compressedSize) {
@@ -865,46 +877,65 @@ class ImageConverterPro {
 
   renderHistory() {
     const list = document.getElementById('historyList');
+    const emptyState = document.getElementById('historyEmpty');
+
     if (this.conversionHistory.length === 0) {
-      list.innerHTML = `
-        <div class="empty-state">
-          <i class="fas fa-history"></i>
-          <p>No hay conversiones recientes</p>
-        </div>
-      `;
+      if (emptyState) {
+        emptyState.style.display = 'block';
+      }
+      // Limpiar items anteriores excepto el empty state
+      Array.from(list.children).forEach(child => {
+        if (child.id !== 'historyEmpty') {
+          child.remove();
+        }
+      });
       return;
     }
 
-    list.innerHTML = this.conversionHistory.slice(0, 5).map(item => {
+    // Ocultar empty state
+    if (emptyState) {
+      emptyState.style.display = 'none';
+    }
+
+    // Limpiar items anteriores excepto el empty state
+    Array.from(list.children).forEach(child => {
+      if (child.id !== 'historyEmpty') {
+        child.remove();
+      }
+    });
+
+    // Renderizar items (máximo 10)
+    this.conversionHistory.slice(0, 10).forEach(item => {
       const date = new Date(item.date);
       const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-      return `
-        <div class="history-item">
-          <div class="history-info">
-            <div class="history-icon"><i class="fas fa-image"></i></div>
-            <div class="history-details">
-              <h4>${item.count} imagen(es) ${item.format.toUpperCase()}</h4>
-              <p>${dateStr}</p>
-            </div>
+      const historyItem = document.createElement('div');
+      historyItem.className = 'history-item';
+      historyItem.innerHTML = `
+        <div class="history-info">
+          <div class="history-icon"><i class="fas fa-image"></i></div>
+          <div class="history-details">
+            <h4>${item.count} imagen(es) ${item.format.toUpperCase()}</h4>
+            <p>${dateStr}</p>
           </div>
-          <div class="history-stats">
-            <div class="history-stat">
-              <span class="history-stat-value">${this.formatSize(item.originalSize)}</span>
-              <span class="history-stat-label">Original</span>
-            </div>
-            <div class="history-stat">
-              <span class="history-stat-value">${this.formatSize(item.compressedSize)}</span>
-              <span class="history-stat-label">Final</span>
-            </div>
-            <div class="history-stat">
-              <span class="history-stat-value">-${item.savingsPercent}%</span>
-              <span class="history-stat-label">Ahorro</span>
-            </div>
+        </div>
+        <div class="history-stats">
+          <div class="history-stat">
+            <span class="history-stat-value">${this.formatSize(item.originalSize)}</span>
+            <span class="history-stat-label">Original</span>
+          </div>
+          <div class="history-stat">
+            <span class="history-stat-value">${this.formatSize(item.compressedSize)}</span>
+            <span class="history-stat-label">Final</span>
+          </div>
+          <div class="history-stat">
+            <span class="history-stat-value">-${item.savingsPercent}%</span>
+            <span class="history-stat-label">Ahorro</span>
           </div>
         </div>
       `;
-    }).join('');
+      list.appendChild(historyItem);
+    });
   }
 
   loadTheme() {
@@ -948,8 +979,190 @@ class ImageConverterPro {
   }
 }
 
+// ============================================
+// FUNCIONES ADICIONALES UX/UI
+// ============================================
+
+/**
+ * Sistema de Tabs
+ */
+function initTabs() {
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabName = button.dataset.tab;
+
+      // Remover active de todos los tabs
+      tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+      });
+      tabPanels.forEach(panel => panel.classList.remove('active'));
+
+      // Agregar active al tab seleccionado
+      button.classList.add('active');
+      button.setAttribute('aria-selected', 'true');
+      document.getElementById(`${tabName}-tab`).classList.add('active');
+
+      // Guardar preferencia
+      localStorage.setItem('activeTab', tabName);
+    });
+  });
+
+  // Restaurar tab activo
+  const savedTab = localStorage.getItem('activeTab') || 'config';
+  const savedTabButton = document.querySelector(`[data-tab="${savedTab}"]`);
+  if (savedTabButton) {
+    savedTabButton.click();
+  }
+}
+
+/**
+ * Presets de filtros
+ */
+function initFilterPresets() {
+  const presetButtons = document.querySelectorAll('.preset-btn');
+
+  presetButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remover active de todos los presets
+      presetButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const preset = btn.dataset.preset;
+      applyFilterPreset(preset);
+    });
+  });
+}
+
+/**
+ * Aplica un preset de filtro
+ * @param {string} preset - Nombre del preset
+ */
+function applyFilterPreset(preset) {
+  const presets = {
+    none: { filter: 'none', brightness: 100, contrast: 100, saturation: 100, rotation: 0 },
+    grayscale: { filter: 'grayscale', brightness: 100, contrast: 100, saturation: 100, rotation: 0 },
+    sepia: { filter: 'sepia', brightness: 100, contrast: 100, saturation: 100, rotation: 0 },
+    vintage: { filter: 'sepia', brightness: 90, contrast: 110, saturation: 80, rotation: 0 }
+  };
+
+  const settings = presets[preset];
+  if (settings) {
+    // Actualizar controles
+    document.getElementById('filterType').value = settings.filter;
+    document.getElementById('brightness').value = settings.brightness;
+    document.getElementById('contrast').value = settings.contrast;
+    document.getElementById('saturation').value = settings.saturation;
+
+    // Actualizar valores mostrados
+    document.getElementById('brightnessValue').textContent = `${settings.brightness}%`;
+    document.getElementById('contrastValue').textContent = `${settings.contrast}%`;
+    document.getElementById('saturationValue').textContent = `${settings.saturation}%`;
+    document.getElementById('rotationValue').textContent = `${settings.rotation}°`;
+
+    // Actualizar vista previa si existe
+    if (window.imageConverter) {
+      window.imageConverter.filters = { ...window.imageConverter.filters, ...settings };
+      window.imageConverter.updateFilterPreview();
+    }
+
+    // Mostrar badge si no es "none"
+    const badge = document.getElementById('filtersBadge');
+    if (preset !== 'none') {
+      badge.style.display = 'inline-block';
+      document.getElementById('filterStatus').style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+      document.getElementById('filterStatus').style.display = 'none';
+    }
+  }
+}
+
+/**
+ * Muestra la sección de resultados
+ */
+function showResults(count, originalSize, compressedSize) {
+  const resultsSection = document.getElementById('resultsSection');
+  const savings = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+
+  // Actualizar stats
+  document.getElementById('resultCount').textContent = `${count} imagen${count !== 1 ? 'es' : ''}`;
+  document.getElementById('resultSizes').textContent = `${formatSize(originalSize)} → ${formatSize(compressedSize)}`;
+  document.getElementById('resultSavings').textContent = `-${savings}%`;
+
+  // Mostrar sección
+  resultsSection.style.display = 'block';
+
+  // Scroll suave
+  setTimeout(() => {
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+/**
+ * Oculta la sección de resultados
+ */
+function hideResults() {
+  document.getElementById('resultsSection').style.display = 'none';
+}
+
+/**
+ * Formatea tamaño en bytes a unidades legibles
+ * @param {number} bytes - Tamaño en bytes
+ * @returns {string} - Tamaño formateado
+ */
+function formatSize(bytes) {
+  if (bytes === 0) {return '0 B';}
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Actualiza el badge de conteo en el botón de conversión
+ * @param {number} count - Número de archivos
+ */
+function updateConvertButtonCount(count) {
+  const countSpan = document.getElementById('convertCount');
+  const badge = document.getElementById('fileCountBadge');
+
+  if (count > 0) {
+    countSpan.textContent = `(${count})`;
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    countSpan.textContent = '';
+    badge.style.display = 'none';
+  }
+}
+
+/**
+ * Actualiza las estadísticas rápidas del preview
+ * @param {number} count - Número de archivos
+ * @param {number} totalSize - Tamaño total en bytes
+ */
+function updateQuickStats(count, totalSize) {
+  document.getElementById('quickTotalFiles').textContent = count;
+  document.getElementById('quickTotalSize').textContent = formatSize(totalSize);
+}
+
+// ============================================
+// INICIALIZACIÓN
+// ============================================
+
 document.addEventListener('DOMContentLoaded', () => {
-  new ImageConverterPro();
+  // Inicializar convertidor
+  window.imageConverter = new ImageConverterPro();
+
+  // Inicializar tabs
+  initTabs();
+
+  // Inicializar presets de filtros
+  initFilterPresets();
 
   // Eventos del modal de comparación
   const compareModal = document.getElementById('compareModal');
@@ -971,5 +1184,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && compareModal.style.display === 'flex') {
       compareModal.style.display = 'none';
     }
+  });
+
+  // Evento para limpiar resultados
+  document.getElementById('clearResultsBtn')?.addEventListener('click', () => {
+    hideResults();
+    window.imageConverter.clearAll();
   });
 });
