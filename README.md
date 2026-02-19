@@ -8,7 +8,7 @@
 
 > 🖼️ Aplicación web profesional para conversión, compresión y optimización de imágenes directamente en el navegador.
 
-![Demo Screenshot](docs/screenshot.png)
+![Demo Screenshot](docs/images/screenshot-demo.png)
 
 ## ✨ Características
 
@@ -142,7 +142,7 @@ Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](L
 
 ## 👨‍💻 Autor
 
-**Anderson Pérez** - [@johan2214](https://github.com/johan2214)
+**Anderson Rivas** - [@johan2214](https://github.com/johan2214)
 
 ## 🙏 Agradecimientos
 

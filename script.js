@@ -2,7 +2,7 @@
  * @fileoverview Convertidor de Imágenes Pro v3.0
  * Aplicación web profesional para conversión, compresión y optimización de imágenes.
  *
- * @author Anderson Pérez <@johan2214>
+ * @author Anderson Rivas <@johan2214>
  * @version 3.0.0
  * @license MIT
  *
