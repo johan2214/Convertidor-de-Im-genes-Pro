@@ -35,7 +35,7 @@
 const CONFIG = {
   maxFileSize: 50 * 1024 * 1024,
   maxConcurrent: 3,
-  thumbnailCacheSize: 100
+  thumbnailCacheSize: 100,
 };
 
 /**
@@ -100,9 +100,15 @@ class ImageConverterPro {
 
   bindEvents() {
     // Drag & Drop
-    this.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); this.dropZone.classList.add('dragover'); });
-    this.dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); this.dropZone.classList.remove('dragover'); });
-    this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+    this.dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      this.dropZone.classList.add('dragover');
+    });
+    this.dropZone.addEventListener('dragleave', e => {
+      e.preventDefault();
+      this.dropZone.classList.remove('dragover');
+    });
+    this.dropZone.addEventListener('drop', e => this.handleDrop(e));
 
     // Botones
     document.getElementById('selectFilesBtn').addEventListener('click', () => {
@@ -115,16 +121,18 @@ class ImageConverterPro {
       this.fileInput.click();
     });
 
-    this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+    this.fileInput.addEventListener('change', e => this.handleFileSelect(e));
     document.getElementById('clearFilesBtn').addEventListener('click', () => this.clearSelection());
     document.getElementById('convertBtn').addEventListener('click', () => this.processImages());
-    document.getElementById('downloadZipBtn').addEventListener('click', () => this.downloadAllAsZip());
+    document
+      .getElementById('downloadZipBtn')
+      .addEventListener('click', () => this.downloadAllAsZip());
     document.getElementById('clearAllBtn').addEventListener('click', () => this.clearAll());
     document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
 
     // Filtros
     document.querySelectorAll('.btn-rotate').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         const rotation = parseInt(e.currentTarget.dataset.rotate);
         this.filters.rotation = (this.filters.rotation + rotation) % 360;
         this.filterRotation.textContent = `${this.filters.rotation}°`;
@@ -132,13 +140,13 @@ class ImageConverterPro {
       });
     });
 
-    document.getElementById('filterType').addEventListener('change', (e) => {
+    document.getElementById('filterType').addEventListener('change', e => {
       this.filters.filter = e.target.value;
       this.updateFilterPreview();
     });
 
     ['brightness', 'contrast', 'saturation'].forEach(id => {
-      document.getElementById(id).addEventListener('input', (e) => {
+      document.getElementById(id).addEventListener('input', e => {
         this.filters[id] = parseInt(e.target.value);
         document.getElementById(`${id}Value`).textContent = `${e.target.value}%`;
         this.updateFilterPreview();
@@ -148,16 +156,19 @@ class ImageConverterPro {
     this.applyToSelectedBtn.addEventListener('click', () => this.applyFiltersToSelected());
     this.applyToAllBtn.addEventListener('click', () => this.applyFiltersToAll());
     document.getElementById('resetFiltersBtn').addEventListener('click', () => this.resetFilters());
-    document.getElementById('changePreviewBtn').addEventListener('click', () => this.changePreviewImage());
+    document
+      .getElementById('changePreviewBtn')
+      .addEventListener('click', () => this.changePreviewImage());
 
     // Quality
-    document.getElementById('quality').addEventListener('input', (e) => {
+    document.getElementById('quality').addEventListener('input', e => {
       document.getElementById('qualityValue').textContent = `${e.target.value}%`;
     });
 
     // Pattern
-    document.getElementById('namingPattern').addEventListener('change', (e) => {
-      document.getElementById('customPatternInput').style.display = e.target.value === 'custom' ? 'block' : 'none';
+    document.getElementById('namingPattern').addEventListener('change', e => {
+      document.getElementById('customPatternInput').style.display =
+        e.target.value === 'custom' ? 'block' : 'none';
     });
   }
 
@@ -169,54 +180,113 @@ class ImageConverterPro {
    */
   async handleDrop(e) {
     e.preventDefault();
+    e.stopPropagation();
     this.dropZone.classList.remove('dragover');
-    const items = e.dataTransfer.items;
-    const files = [];
 
-    for (const item of items) {
-      const entry = item.webkitGetAsEntry();
-      if (entry) {
-        if (entry.isDirectory) {
-          await this.traverseDirectory(entry, files);
-        } else {
-          const file = await new Promise(resolve => entry.file(resolve));
-          if (file) {files.push(file);}
+    const dt = e.dataTransfer;
+    let files = [];
+
+    // Primero: intentar obtener archivos directamente (funciona para fotos sueltas en todos los navegadores)
+    if (dt.files && dt.files.length > 0) {
+      files = Array.from(dt.files);
+    }
+
+    // Segundo: si hay carpetas, procesar con webkitGetAsEntry (Chrome/Edge)
+    if (dt.items && dt.items.length > 0) {
+      const items = Array.from(dt.items);
+      const folderCount = items.filter(item => {
+        if (!item.webkitGetAsEntry) {
+          return false;
+        }
+        const entry = item.webkitGetAsEntry();
+        return entry && entry.isDirectory;
+      }).length;
+
+      if (folderCount > 0) {
+        // Hay carpetas - limpiar y procesar todo via webkit
+        files = [];
+        for (const item of items) {
+          if (typeof item.webkitGetAsEntry === 'function') {
+            try {
+              const entry = item.webkitGetAsEntry();
+              if (entry) {
+                if (entry.isDirectory) {
+                  await this.traverseDirectory(entry, files);
+                } else {
+                  const file = await new Promise((resolve, reject) => {
+                    entry.file(resolve, reject);
+                  });
+                  if (file) {
+                    files.push(file);
+                  }
+                }
+              }
+            } catch (err) {
+              // Ignorar errores de lectura
+            }
+          }
         }
       }
     }
+
+    // Configurar relativePath para carpetas
+    files.forEach(file => {
+      if (file.webkitRelativePath && !file.relativePath) {
+        file.relativePath = file.webkitRelativePath;
+      }
+    });
+
     this.processFiles(files);
   }
 
-  /**
-   * Recorre recursivamente un directorio para obtener todos los archivos
-   * @async
-   * @param {DirectoryEntry} dirEntry - Entrada del directorio a recorrer
-   * @param {File[]} files - Array donde se almacenarán los archivos encontrados
-   * @returns {Promise<void>}
-   */
   async traverseDirectory(dirEntry, files) {
     const reader = dirEntry.createReader();
-    const readEntries = () => new Promise(resolve => {
-      reader.readEntries(async entries => {
-        if (entries.length === 0) { resolve(); return; }
-        for (const entry of entries) {
-          if (entry.isDirectory) {
-            await this.traverseDirectory(entry, files);
-          } else {
-            const file = await new Promise(resolve => entry.file(resolve));
-            if (file) { file.relativePath = entry.fullPath; files.push(file); }
+
+    const readAll = async () => {
+      const allEntries = [];
+
+      const readNextBatch = () =>
+        new Promise(resolve => {
+          reader.readEntries(batch => {
+            if (batch.length === 0) {
+              resolve();
+              return;
+            }
+            allEntries.push(...batch);
+            readNextBatch();
+          });
+        });
+
+      await readNextBatch();
+      return allEntries;
+    };
+
+    const entries = await readAll();
+
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        await this.traverseDirectory(entry, files);
+      } else {
+        try {
+          const file = await new Promise((resolve, reject) => {
+            entry.file(resolve, reject);
+          });
+          if (file) {
+            file.relativePath = entry.fullPath;
+            files.push(file);
           }
+        } catch (err) {
+          // Ignorar archivos que no se puedan leer
         }
-        await readEntries();
-        resolve();
-      });
-    });
-    await readEntries();
+      }
+    }
   }
 
   handleFileSelect(e) {
     const files = Array.from(e.target.files).map(file => {
-      if (file.webkitRelativePath) {file.relativePath = '/' + file.webkitRelativePath;}
+      if (file.webkitRelativePath) {
+        file.relativePath = '/' + file.webkitRelativePath;
+      }
       return file;
     });
     this.processFiles(files);
@@ -231,10 +301,34 @@ class ImageConverterPro {
    */
   processFiles(files) {
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/')) {
-        this.showToast('warning', 'Archivo ignorado', `${file.name} no es una imagen válida`);
-        return false;
+      // Verificar por tipo MIME
+      if (file.type && file.type.startsWith('image/')) {
+        // Tipo MIME válido
+      } else {
+        // Verificar por extensión del nombre
+        const ext = file.name.split('.').pop().toLowerCase();
+        const imageExtensions = [
+          'jpg',
+          'jpeg',
+          'png',
+          'gif',
+          'webp',
+          'bmp',
+          'svg',
+          'tiff',
+          'tif',
+          'ico',
+          'avif',
+          'heic',
+          'heif',
+        ];
+        if (!imageExtensions.includes(ext)) {
+          this.showToast('warning', 'Archivo ignorado', `${file.name} no es una imagen válida`);
+          return false;
+        }
       }
+
+      // Verificar tamaño
       if (file.size > CONFIG.maxFileSize) {
         this.showToast('warning', 'Archivo muy grande', `${file.name} excede el límite de 50MB`);
         return false;
@@ -242,7 +336,9 @@ class ImageConverterPro {
       return true;
     });
 
-    if (validFiles.length === 0) {return;}
+    if (validFiles.length === 0) {
+      return;
+    }
 
     this.selectedFiles = [...this.selectedFiles, ...validFiles];
     document.getElementById('convertBtn').disabled = false;
@@ -284,10 +380,12 @@ class ImageConverterPro {
         </button>
       `;
 
-      if (isSelected) {item.classList.add('selected-for-filters');}
+      if (isSelected) {
+        item.classList.add('selected-for-filters');
+      }
 
       const checkbox = item.querySelector('.preview-checkbox');
-      checkbox.addEventListener('change', (e) => {
+      checkbox.addEventListener('change', e => {
         if (e.target.checked) {
           this.selectedForFilters.add(i);
           item.classList.add('selected-for-filters');
@@ -298,7 +396,7 @@ class ImageConverterPro {
         this.updateApplyButtons();
       });
 
-      item.addEventListener('click', (e) => {
+      item.addEventListener('click', e => {
         if (!e.target.closest('input') && !e.target.closest('button')) {
           checkbox.checked = !checkbox.checked;
           checkbox.dispatchEvent(new Event('change'));
@@ -307,7 +405,7 @@ class ImageConverterPro {
 
       this.loadThumbnail(file, item.querySelector('img'));
 
-      item.querySelector('.preview-item-remove').addEventListener('click', (e) => {
+      item.querySelector('.preview-item-remove').addEventListener('click', e => {
         e.stopPropagation();
         this.removeFile(i);
       });
@@ -318,7 +416,8 @@ class ImageConverterPro {
     if (this.selectedFiles.length > 20) {
       const more = document.createElement('div');
       more.className = 'preview-item';
-      more.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);';
+      more.style.cssText =
+        'display:flex;align-items:center;justify-content:center;background:var(--bg-tertiary);';
       more.innerHTML = `<span style="color:var(--text-muted)">+${this.selectedFiles.length - 20} más...</span>`;
       this.previewList.appendChild(more);
     }
@@ -332,7 +431,7 @@ class ImageConverterPro {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const image = new Image();
       image.onload = () => {
         const canvas = document.createElement('canvas');
@@ -369,7 +468,7 @@ class ImageConverterPro {
     const file = this.selectedFiles[this.previewImageIndex] || this.selectedFiles[0];
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -406,16 +505,24 @@ class ImageConverterPro {
   }
 
   changePreviewImage() {
-    if (this.selectedFiles.length === 0) {return;}
+    if (this.selectedFiles.length === 0) {
+      return;
+    }
     this.previewImageIndex = (this.previewImageIndex + 1) % Math.min(this.selectedFiles.length, 5);
     this.updateFilterPreview();
   }
 
   getCSSFilter() {
     const filters = [];
-    if (this.filters.filter === 'grayscale') {filters.push('grayscale(100%)');}
-    if (this.filters.filter === 'sepia') {filters.push('sepia(100%)');}
-    if (this.filters.filter === 'blur') {filters.push('blur(5px)');}
+    if (this.filters.filter === 'grayscale') {
+      filters.push('grayscale(100%)');
+    }
+    if (this.filters.filter === 'sepia') {
+      filters.push('sepia(100%)');
+    }
+    if (this.filters.filter === 'blur') {
+      filters.push('blur(5px)');
+    }
     filters.push(`brightness(${this.filters.brightness}%)`);
     filters.push(`contrast(${this.filters.contrast}%)`);
     filters.push(`saturate(${this.filters.saturation}%)`);
@@ -430,7 +537,11 @@ class ImageConverterPro {
     this.selectedForFilters.forEach(index => {
       this.fileFilters.set(index, { ...this.filters });
     });
-    this.showToast('success', 'Filtros aplicados', `Aplicados a ${this.selectedForFilters.size} imagen(es)`);
+    this.showToast(
+      'success',
+      'Filtros aplicados',
+      `Aplicados a ${this.selectedForFilters.size} imagen(es)`
+    );
     this.renderPreview();
   }
 
@@ -489,7 +600,15 @@ class ImageConverterPro {
       try {
         // Usar filtros específicos del archivo o los globales
         const fileFilters = this.fileFilters.get(i) || this.filters;
-        const result = await this.processSingleFile(this.selectedFiles[i], i, maxWidth, quality, format, maintainStructure, fileFilters);
+        const result = await this.processSingleFile(
+          this.selectedFiles[i],
+          i,
+          maxWidth,
+          quality,
+          format,
+          maintainStructure,
+          fileFilters
+        );
         this.processedImages.push(result);
         this.addImageToGallery(result, i);
       } catch (error) {
@@ -506,7 +625,11 @@ class ImageConverterPro {
     const compressedSize = this.processedImages.reduce((a, b) => a + b.size, 0);
     this.addToHistory(this.selectedFiles.length, originalSize, compressedSize);
 
-    this.showToast('success', 'Conversión completada', `${this.processedImages.length} imagen(es) procesadas`);
+    this.showToast(
+      'success',
+      'Conversión completada',
+      `${this.processedImages.length} imagen(es) procesadas`
+    );
     this.isProcessing = false;
     document.getElementById('convertBtn').disabled = false;
     this.updateFinalStats(originalSize, compressedSize);
@@ -545,7 +668,7 @@ class ImageConverterPro {
   async processSingleFile(file, index, maxWidth, quality, format, maintainStructure, fileFilters) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const originalDataUrl = e.target.result;
         const img = new Image();
         img.onload = () => {
@@ -568,9 +691,15 @@ class ImageConverterPro {
             ctx.rotate((rotation * Math.PI) / 180);
 
             const filters = [];
-            if (fileFilters.filter === 'grayscale') {filters.push('grayscale(100%)');}
-            if (fileFilters.filter === 'sepia') {filters.push('sepia(100%)');}
-            if (fileFilters.filter === 'blur') {filters.push('blur(5px)');}
+            if (fileFilters.filter === 'grayscale') {
+              filters.push('grayscale(100%)');
+            }
+            if (fileFilters.filter === 'sepia') {
+              filters.push('sepia(100%)');
+            }
+            if (fileFilters.filter === 'blur') {
+              filters.push('blur(5px)');
+            }
             filters.push(`brightness(${fileFilters.brightness}%)`);
             filters.push(`contrast(${fileFilters.contrast}%)`);
             filters.push(`saturate(${fileFilters.saturation}%)`);
@@ -579,9 +708,16 @@ class ImageConverterPro {
             ctx.drawImage(img, -width / 2, -height / 2, width, height);
             ctx.restore();
 
-            let mimeType = 'image/webp', extension = 'webp';
-            if (format === 'jpeg') { mimeType = 'image/jpeg'; extension = 'jpg'; }
-            if (format === 'png') { mimeType = 'image/png'; extension = 'png'; }
+            let mimeType = 'image/webp',
+              extension = 'webp';
+            if (format === 'jpeg') {
+              mimeType = 'image/jpeg';
+              extension = 'jpg';
+            }
+            if (format === 'png') {
+              mimeType = 'image/png';
+              extension = 'png';
+            }
 
             const dataUrl = canvas.toDataURL(mimeType, quality);
             const size = Math.round((dataUrl.split(',')[1].length * 3) / 4);
@@ -589,7 +725,10 @@ class ImageConverterPro {
             resolve({
               originalName: file.name,
               name: `${file.name.replace(/\.[^/.]+$/, '')}.${extension}`,
-              relativePath: maintainStructure && file.relativePath ? file.relativePath.replace(/\/[^/]*$/, '') : '',
+              relativePath:
+                maintainStructure && file.relativePath
+                  ? file.relativePath.replace(/\/[^/]*$/, '')
+                  : '',
               originalDataUrl,
               dataUrl,
               originalSize: file.size,
@@ -597,9 +736,11 @@ class ImageConverterPro {
               originalWidth: img.width,
               originalHeight: img.height,
               width: rotation === 90 || rotation === 270 ? height : width,
-              height: rotation === 90 || rotation === 270 ? width : height
+              height: rotation === 90 || rotation === 270 ? width : height,
             });
-          } catch (error) { reject(error); }
+          } catch (error) {
+            reject(error);
+          }
         };
         img.onerror = () => reject(new Error('Error cargando imagen'));
         img.src = e.target.result;
@@ -610,7 +751,8 @@ class ImageConverterPro {
   }
 
   calculateDimensions(originalWidth, originalHeight, maxWidth) {
-    let width = originalWidth, height = originalHeight;
+    let width = originalWidth,
+      height = originalHeight;
     if (width > maxWidth || height > maxWidth) {
       const ratio = Math.min(maxWidth / width, maxWidth / height);
       width = Math.round(width * ratio);
@@ -668,28 +810,32 @@ class ImageConverterPro {
 
     originalImg.src = image.originalDataUrl;
     compressedImg.src = image.dataUrl;
-    document.getElementById('compareOriginalInfo').textContent = `${image.originalWidth}×${image.originalHeight}px • ${this.formatSize(image.originalSize)}`;
-    document.getElementById('compareCompressedInfo').textContent = `${image.width}×${image.height}px • ${this.formatSize(image.size)}`;
+    document.getElementById('compareOriginalInfo').textContent =
+      `${image.originalWidth}×${image.originalHeight}px • ${this.formatSize(image.originalSize)}`;
+    document.getElementById('compareCompressedInfo').textContent =
+      `${image.width}×${image.height}px • ${this.formatSize(image.size)}`;
 
     modal.style.display = 'flex';
 
     // Configurar slider interactivo
     let isDragging = false;
 
-    const updateSlider = (clientX) => {
+    const updateSlider = clientX => {
       const container = modal.querySelector('.compare-images');
       const rect = container.getBoundingClientRect();
       let percentage = ((clientX - rect.left) / rect.width) * 100;
       percentage = Math.max(0, Math.min(100, percentage));
 
       slider.style.left = `${percentage}%`;
-      originalImg.style.width = `${percentage}%`;
+      originalImg.style.clipPath = `inset(0 ${100 - percentage}% 0 0)`;
       slider.setAttribute('aria-valuenow', Math.round(percentage));
     };
 
     // Eventos del mouse
-    const handleMouseMove = (e) => {
-      if (!isDragging) {return;}
+    const handleMouseMove = e => {
+      if (!isDragging) {
+        return;
+      }
       updateSlider(e.clientX);
     };
 
@@ -699,7 +845,7 @@ class ImageConverterPro {
       document.removeEventListener('mouseup', handleMouseUp);
     };
 
-    slider.addEventListener('mousedown', (e) => {
+    slider.addEventListener('mousedown', e => {
       isDragging = true;
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
@@ -707,8 +853,10 @@ class ImageConverterPro {
     });
 
     // Eventos táctiles
-    const handleTouchMove = (e) => {
-      if (!isDragging) {return;}
+    const handleTouchMove = e => {
+      if (!isDragging) {
+        return;
+      }
       updateSlider(e.touches[0].clientX);
     };
 
@@ -718,14 +866,18 @@ class ImageConverterPro {
       document.removeEventListener('touchend', handleTouchEnd);
     };
 
-    slider.addEventListener('touchstart', () => {
-      isDragging = true;
-      document.addEventListener('touchmove', handleTouchMove, { passive: false });
-      document.addEventListener('touchend', handleTouchEnd);
-    }, { passive: true });
+    slider.addEventListener(
+      'touchstart',
+      () => {
+        isDragging = true;
+        document.addEventListener('touchmove', handleTouchMove, { passive: false });
+        document.addEventListener('touchend', handleTouchEnd);
+      },
+      { passive: true }
+    );
 
     // Click en la imagen para saltar
-    modal.querySelector('.compare-images').addEventListener('click', (e) => {
+    modal.querySelector('.compare-images').addEventListener('click', e => {
       if (e.target !== slider && !slider.contains(e.target)) {
         updateSlider(e.clientX);
       }
@@ -740,8 +892,11 @@ class ImageConverterPro {
   }
 
   formatSize(bytes) {
-    if (bytes === 0) {return '0 B';}
-    const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+    if (bytes === 0) {
+      return '0 B';
+    }
+    const k = 1024,
+      sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
@@ -753,7 +908,7 @@ class ImageConverterPro {
   }
 
   updateFinalStats(originalSize, compressedSize) {
-    const savings = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+    const savings = (((originalSize - compressedSize) / originalSize) * 100).toFixed(1);
     document.getElementById('compressedSize').textContent = this.formatSize(compressedSize);
     document.getElementById('savingsPercent').textContent = `${savings}%`;
   }
@@ -764,8 +919,11 @@ class ImageConverterPro {
     // Reindexar los filtros guardados
     const newFilters = new Map();
     this.fileFilters.forEach((filters, oldIndex) => {
-      if (oldIndex < index) {newFilters.set(oldIndex, filters);}
-      else if (oldIndex > index) {newFilters.set(oldIndex - 1, filters);}
+      if (oldIndex < index) {
+        newFilters.set(oldIndex, filters);
+      } else if (oldIndex > index) {
+        newFilters.set(oldIndex - 1, filters);
+      }
     });
     this.fileFilters = newFilters;
     this.renderPreview();
@@ -826,11 +984,17 @@ class ImageConverterPro {
       this.processedImages.forEach(img => {
         const base64Data = img.dataUrl.split(',')[1];
         let path = img.name;
-        if (maintainStructure && img.relativePath) {path = img.relativePath + '/' + img.name;}
+        if (maintainStructure && img.relativePath) {
+          path = img.relativePath + '/' + img.name;
+        }
         zip.file(path, base64Data, { base64: true });
       });
 
-      const content = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+      const content = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 },
+      });
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
@@ -845,7 +1009,7 @@ class ImageConverterPro {
   }
 
   addToHistory(count, originalSize, compressedSize) {
-    const savings = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+    const savings = (((originalSize - compressedSize) / originalSize) * 100).toFixed(1);
     const historyItem = {
       id: Date.now(),
       date: new Date().toISOString(),
@@ -854,11 +1018,13 @@ class ImageConverterPro {
       compressedSize,
       savings: originalSize - compressedSize,
       savingsPercent: savings,
-      format: document.getElementById('outputFormat').value
+      format: document.getElementById('outputFormat').value,
     };
 
     this.conversionHistory.unshift(historyItem);
-    if (this.conversionHistory.length > 20) {this.conversionHistory = this.conversionHistory.slice(0, 20);}
+    if (this.conversionHistory.length > 20) {
+      this.conversionHistory = this.conversionHistory.slice(0, 20);
+    }
     localStorage.setItem('conversionHistory', JSON.stringify(this.conversionHistory));
     this.renderHistory();
   }
@@ -875,11 +1041,18 @@ class ImageConverterPro {
       return;
     }
 
-    list.innerHTML = this.conversionHistory.slice(0, 5).map(item => {
-      const date = new Date(item.date);
-      const dateStr = date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    list.innerHTML = this.conversionHistory
+      .slice(0, 5)
+      .map(item => {
+        const date = new Date(item.date);
+        const dateStr = date.toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
 
-      return `
+        return `
         <div class="history-item">
           <div class="history-info">
             <div class="history-icon"><i class="fas fa-image"></i></div>
@@ -904,13 +1077,15 @@ class ImageConverterPro {
           </div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
   }
 
   loadTheme() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    document.querySelector('#themeToggle i').className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    document.querySelector('#themeToggle i').className =
+      savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   }
 
   toggleTheme() {
@@ -918,14 +1093,24 @@ class ImageConverterPro {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-    document.querySelector('#themeToggle i').className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-    this.showToast('info', 'Tema cambiado', `Modo ${newTheme === 'dark' ? 'oscuro' : 'claro'} activado`);
+    document.querySelector('#themeToggle i').className =
+      newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    this.showToast(
+      'info',
+      'Tema cambiado',
+      `Modo ${newTheme === 'dark' ? 'oscuro' : 'claro'} activado`
+    );
   }
 
   showToast(type, title, message) {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icons = { success: 'fa-check-circle', error: 'fa-times-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+    const icons = {
+      success: 'fa-check-circle',
+      error: 'fa-times-circle',
+      warning: 'fa-exclamation-triangle',
+      info: 'fa-info-circle',
+    };
 
     toast.innerHTML = `
       <i class="fas ${icons[type]}"></i>
@@ -960,14 +1145,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Cerrar al hacer click fuera del contenido
-  compareModal.addEventListener('click', (e) => {
+  compareModal.addEventListener('click', e => {
     if (e.target === compareModal) {
       compareModal.style.display = 'none';
     }
   });
 
   // Cerrar con la tecla Escape
-  document.addEventListener('keydown', (e) => {
+  document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && compareModal.style.display === 'flex') {
       compareModal.style.display = 'none';
     }
